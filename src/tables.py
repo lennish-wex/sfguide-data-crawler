@@ -71,8 +71,8 @@ def cortex_sql(session, model, prompt, temperature):
     return result
 
 def run_complete(session, tablename, model, sampling_mode, n, prompt, temperature = None):
-    
-    """Returns (success/failed LLM-generated description) of table given least empty sample records."""
+    """Returns (success/failed LLM-generated description)
+    of table given least empty sample records."""
 
     import textwrap
     from snowflake.cortex import Complete
@@ -83,32 +83,35 @@ def run_complete(session, tablename, model, sampling_mode, n, prompt, temperatur
     try:
         # Escape curly braces for SQL translation to avoid error
         prompt = textwrap.dedent(prompt.format(table_samples = samples))
-        
+
         if isinstance(temperature, float):
-            if temperature > 0 and temperature < 1: 
+            if temperature > 0 and temperature < 1:
                 response = cortex_sql(session,
                                     model,
                                     prompt,
                                     temperature)
             else: # Use default temperature if non-valid temperature passed
-                response = Complete(model, 
+                response = Complete(model,
                                     prompt,
                                     session = session)
         else:
-            response = Complete(model, 
+            response = Complete(model,
                                 prompt,
                                 session = session)
         response = str(response).strip().replace("'", "\\'")
-        
+
         return ("success", response)
+
     except SnowparkSQLException as e:
         if 'max tokens' in str(e):
             raise NotImplementedError(f"{e}.\nCortex token counter will be added once available. Try a different model or fewer sample rows.")
         else:
             return ("fail", f"""LLM-generation Error Encountered: {e}""")
+
     except Exception as e:
         return ("fail", f"""LLM-generation Error Encountered: {e}""")
-    
+
+
 def get_crawlable_tbls(session,
                      database,
                      schema,
@@ -225,35 +228,31 @@ def generate_description(session,
                          model,
                          update_comment
                          ):
-    
+    """ Catalogs table objects in Snowflake.
+        Args:
+            session (Snowpark session) : ignore parameter
+            tablename (string): Fully qualified Snowflake table name
+            prompt (string): Prompt in format of f-string to pass to LLM
+            sampling_mode (string): How to retrieve sample data records for table.
+                                    One of ['fast' (Default), 'nonnull']
+                                    - Pass 'fast' or omit to randomly sample records from each table.
+                                    - Pass 'nonnull' to prioritize least null records for table samples.
+                                    - Passing 'nonnull' will take considerably longer to run.
+            n (int): Number of records to sample from table. Defaults to 5.
+            model (string): Cortex model to generate table descriptions. Defaults to 'mistral-7b'.
+            update_comment (bool): If True, update table's current comments. Defaults to False
+
+        Returns:
+            Dict
+    """
+
     from snowflake.snowpark.exceptions import SnowparkSQLException
-    
-    """
-    Catalogs table objects in Snowflake.
-
-    Args:
-        session (Snowpark session) : ignore parameter
-        tablename (string): Fully qualified Snowflake table name
-        prompt (string): Prompt in format of f-string to pass to LLM
-        sampling_mode (string): How to retrieve sample data records for table.
-                                One of ['fast' (Default), 'nonnull']
-                                - Pass 'fast' or omit to randomly sample records from each table.
-                                - Pass 'nonnull' to prioritize least null records for table samples.
-                                - Passing 'nonnull' will take considerably longer to run.
-        n (int): Number of records to sample from table. Defaults to 5.
-        model (string): Cortex model to generate table descriptions. Defaults to 'mistral-7b'.
-        update_comment (bool): If True, update table's current comments. Defaults to False
-
-    Returns:
-        Dict
-    """
-
 
     response = ''
     try:
         ctx_response, response = run_complete(session,
                                               tablename,
-                                              model, 
+                                              model,
                                               sampling_mode,
                                               n,
                                               prompt)
@@ -271,5 +270,59 @@ def generate_description(session,
         response = f'Error encountered: {str(e)}'
     return {
         'TABLENAME': tablename,
+        'DESCRIPTION': response.replace("\\", "")
+        }
+
+def generate_column_description(session,
+                                tablename,
+                                prompt,
+                                sampling_mode,
+                                n,
+                                model,
+                                update_comment
+                                ):
+    """ Catalogs table objects in Snowflake.
+        Args:
+            session (Snowpark session) : ignore parameter
+            tablename (string): Fully qualified Snowflake table name
+            prompt (string): Prompt in format of f-string to pass to LLM
+            sampling_mode (string): How to retrieve sample data records for table.
+                                    One of ['fast' (Default), 'nonnull']
+                                    - Pass 'fast' or omit to randomly sample records from each table.
+                                    - Pass 'nonnull' to prioritize least null records for table samples.
+                                    - Passing 'nonnull' will take considerably longer to run.
+            n (int): Number of records to sample from table. Defaults to 5.
+            model (string): Cortex model to generate table descriptions. Defaults to 'mistral-7b'.
+            update_comment (bool): If True, update table's current comments. Defaults to False
+
+        Returns:
+            Dict
+    """
+
+    from snowflake.snowpark.exceptions import SnowparkSQLException
+
+    response = ''
+    try:
+        ctx_response, response = run_complete(session,
+                                              tablename,
+                                              model,
+                                              sampling_mode,
+                                              n,
+                                              prompt)
+        if update_comment and ctx_response == 'success':
+            try:
+                session.sql(f"COMMENT IF EXISTS ON TABLE {tablename} IS '{response}'").collect()
+            except SnowparkSQLException as e:
+                try: # Table may actually be a view
+                    session.sql(f"COMMENT IF EXISTS ON VIEW {tablename} IS '{response}'").collect()
+                except Exception as e:
+                    response = f'Error encountered: {str(e)}'
+            except Exception as e:
+                response = f'Error encountered: {str(e)}'
+    except Exception as e:
+        response = f'Error encountered: {str(e)}'
+    return {
+        'TABLENAME': tablename,
+        'COLUMN':'',
         'DESCRIPTION': response.replace("\\", "")
         }

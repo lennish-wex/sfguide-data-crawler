@@ -1,0 +1,9 @@
+{
+    "account":"sda62317.us-west-2.privatelink",
+    "user":"W446374",
+    "role":"SANDBOX__DATAOPS__W446374__OWNER",
+    "warehouse":"dev_lg_wh",
+    "database"  : "SANDBOX",
+    "schema"    : "DATAOPS__W446374",
+    "authenticator":"externalbrowser"
+}

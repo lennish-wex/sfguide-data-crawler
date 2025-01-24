@@ -1,12 +1,34 @@
-import time
-import streamlit as st
-import pandas as pd
-from snowflake.cortex import Complete
-from snowflake.snowpark.exceptions import SnowparkSQLException
-from snowflake.snowpark.context import get_active_session
+"""run streamlit stuff"""
 
-# Get the current credentials
-session = get_active_session()
+import json
+
+from snowflake.snowpark.context import get_active_session
+from snowflake.cortex import Complete
+from snowflake.snowpark.exceptions import SnowparkSQLException, SnowparkSessionException
+from snowflake.snowpark.session import Session
+
+import streamlit as st
+
+from snowflake.snowpark import Session
+
+session = None
+
+# Check if a session object exists
+try:
+    # Get the current credentials
+    session = get_active_session()
+    print("Session exists.")
+
+except SnowparkSessionException:
+    # Create Snowflake Session object
+    connection_parameters = json.load(open('connection.json', encoding='UTF-8'))
+
+    session = Session.builder.configs(connection_parameters).create()
+    print("No active session; getting session")
+
+
+
+
 models = [
     'llama3.2-1b',
     'llama3.2-3b',
@@ -87,6 +109,7 @@ def specify_tables(session):
             else:
                 st.session_state['include_tables'] = specified_tables
 
+
 st.set_page_config(layout="wide", page_title="Data Catalog Runner", page_icon="🧮")
 st.title("Catalog Tables ❄️")
 st.subheader("Specify databases or schemas to crawl")
@@ -150,9 +173,9 @@ if submit_button:
                 st.session_state['schema'] = ''
             try:
                 query = f"""
-                CALL DATA_CATALOG(target_database => '{st.session_state["db"]}',
-                                        catalog_database => 'DATA_CATALOG',
-                                        catalog_schema => 'TABLE_CATALOG',
+                CALL SANDBOX.DATAOPS__W446374.DATA_CATALOG(target_database => '{st.session_state["db"]}',
+                                        catalog_database => 'SANDBOX',
+                                        catalog_schema => 'DATAOPS__W446374',
                                         catalog_table => 'TABLE_CATALOG',
                                         target_schema => '{st.session_state["schema"]}',
                                         include_tables => {st.session_state["include_tables"]},
