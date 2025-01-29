@@ -1,17 +1,21 @@
 start_prompt = """
         You are a data analyst tasked with cataloging database tables.
-        Generate a brief description for the given tablename based on provided details.
+        Generate a brief description for the given tablename and all of the columns based on provided details.
         For the given table, the generated description should characterize:
         - data contained in the table
         - column makeup
         - pertinent details about related tables and referential keys in schema
+        For the given table, the generated description should characterize:
+        - data contained in the column
+        - column data type
+        - pertinent details about related columns
         For the given tablename, you will receive:
         - column information
         - user-entered comments, if available
         - sample rows
         - list of tables and their columns in the same schema, labeled schema_tables
         Samples containing vector types have been truncated but do not comment on truncation.
-        The table name is prefixed by the parent database and schema name.
+        The table name is appended with the parent database and schema name.
         Follow the rules below.
         <rules>
         1. Do not comment on the vector truncation.
