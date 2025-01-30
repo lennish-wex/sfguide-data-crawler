@@ -98,13 +98,16 @@ def run_table_catalog(session,
             """
             async_jobs.append(session.sql(query).collect_nowait())
 
-        n = 20 # Give 20 seconds to finish first
+        # Give 20 seconds to finish first
+        n = 20
 
         while not any(job.is_done() for job in async_jobs):
             time.sleep(n)
-            n = 60 # Now check every minute
+            # Now check every minute
+            n = 60
 
         results = [json.loads(job.result()[0][0]) for job in async_jobs if job.is_done()]
+
         # there is a bit of latency between when the query is done and
         # when it is available in the query history
         while len(results) != len(tables):
