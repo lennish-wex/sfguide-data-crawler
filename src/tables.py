@@ -100,20 +100,16 @@ def run_complete(session, tablename, model, sampling_mode, n, prompt, temperatur
         # Escape curly braces for SQL translation to avoid error
         prompt = textwrap.dedent(prompt.format(table_samples = samples))
 
-        if isinstance(temperature, float):
-            if temperature > 0 and temperature < 1:
-                response = cortex_sql(session,
-                                    model,
-                                    prompt,
-                                    temperature)
-            else: # Use default temperature if non-valid temperature passed
-                response = Complete(model,
-                                    prompt,
-                                    session = session)
+        if isinstance(temperature, float) and 0 < temperature < 1:
+            response = cortex_sql(session,
+                                model,
+                                prompt,
+                                temperature)
         else:
             response = Complete(model,
                                 prompt,
                                 session = session)
+
         response = str(response).strip().replace("'", "\\'")
 
         return ("success", response)
@@ -283,6 +279,7 @@ def generate_description(session,
     from snowflake.snowpark.exceptions import SnowparkSQLException
 
     response = ''
+
     try:
         ctx_response, response = run_complete(session,
                                               tablename,
@@ -290,6 +287,7 @@ def generate_description(session,
                                               sampling_mode,
                                               n,
                                               prompt)
+
         if update_comment and ctx_response == 'success':
             try:
                 session.sql(f"COMMENT IF EXISTS ON TABLE {tablename} IS '{response}'").collect()
