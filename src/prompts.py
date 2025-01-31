@@ -22,6 +22,7 @@ start_prompt = """
         2. Generated descriptions should be concise and contain 50 words or less.
         3. Do not use apostrophes or single quotes in your descriptions.
         4. Do not make assumptions. If unsure, return Unable to generate table description with high degree of certainty.
+        5. Use a consistent format in your response.
         </rules>
         <tablename>
         {tablename} 
